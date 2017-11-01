@@ -60,7 +60,7 @@ def main(argv):
 
     # Connectivity check
     if len(list(nx.k_edge_components(G, k=1))) > 1:
-        print("No solution was possible with chosen B")
+        print("No solution was possible with chosen B (connectivity)")
         sys.exit()
 
     # All bridges are identified and compared to B
@@ -71,12 +71,46 @@ def main(argv):
         bridge_w += G[u][v]["weight"]
         bridge_mw += G[u][v]["m_weight"]
     if bridge_w > B or bridge_mw > B:
-        print("No solution was possible with chosen B")
+        print("No solution was possible with chosen B (bridge weight)")
         sys.exit()
 
     # Naive MFMST algorithm
-    visited = set()
-    root = int(random.uniform(0, num_nodes))
+    # root = '1' # int(random.uniform(1, num_nodes + 1))
+    # weight, m_weight = 0, 0
+    # visited, stack = set(root), [root]
+    # while(stack):
+    #     v = stack.pop()
+    #     neighbors = G.adj[v]
+    #     for u in neighbors:
+    #         if u not in visited:
+    #             stack.append(u)
+    #             visited.add(u)
+    #             weight += G[v][u]["weight"]
+    #             m_weight += G[v][u]["m_weight"]
+    #
+    # print(visited, weight, m_weight)
+
+    non_bridges = [e for e in G.edges if e not in bridges]
+    i = 5000
+    w, mw = B, B
+
+    for _ in range(i):
+        guess = random.sample(non_bridges, k= num_edges - (num_nodes - 1 - len(bridges)))
+        for u, v in guess:
+            G.remove_edge(u, v)
+        if len(list(nx.k_edge_components(G, k=1))) > 1:
+            for u, v in guess:
+                G.add_edge(u, v)
+        else:
+            w_, mw_ = 0, 0
+            for u, v in G.edges:
+                w += G[u][v]["weight"]
+                mw += G[u][v]["m_weight"]
+            if max(w_, mw_) < B:
+                B = max(w_, mw_)
+                w, mw = w_, mw_
+
+    print(w, mw)
 
     # TODO: Printing, for fun
     layout = nx.spring_layout(G)
@@ -85,6 +119,9 @@ def main(argv):
     nx.drawing.nx_pylab.draw_networkx_edge_labels(G, pos=layout, font_size=9, edge_labels=labels)
     plt.show()
 
+
+def guess_tree(G, bridges, guesses):
+    pass
 
 def usage(usage_type):
     # Method for showing help, if this tool is running through commandline
