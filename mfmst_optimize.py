@@ -47,6 +47,9 @@ def main(argv):
         weights.append(wt)
     B = sum(sorted(weights, reverse=True)[:num_nodes - 1])
 
+    # TODO: Calculate the min of B, that is the max of the two minimum spanning tress
+    # TODO: in regards to the two weights.
+
     # TODO: Insert function to call decision algorithm here
 
     # Initial weight check - O(n) time
