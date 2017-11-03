@@ -41,14 +41,23 @@ def main(argv):
     # Graph is created using NetworkX
     G = nx.parse_edgelist(edge_list, data=(('weight', int), ("m_weight", int), ("id", int)))
 
-    # Calculate start B - O(n log n) time
+    # Calculate the max of B - O(n log n) time
     weights = []
     for (u, v, wt) in G.edges.data("weight"):
         weights.append(wt)
     B = sum(sorted(weights, reverse=True)[:num_nodes - 1])
 
-    # TODO: Calculate the min of B, that is the max of the two minimum spanning tress
-    # TODO: in regards to the two weights.
+    # Calculate the min of B, that is the max of the two minimum spanning tress
+    tree_edges = nx.minimum_spanning_edges(G, algorithm="kruskal", weight="weight")
+    m_tree_edges = nx.minimum_spanning_edges(G, algorithm="kruskal", weight="m_weight")
+
+    w_sum = 0
+    mw_sum = 0
+    for edge in tree_edges:
+        w_sum += edge[2]["weight"]
+    for edge in m_tree_edges:
+        mw_sum += edge[2]["m_weight"]
+    B_min = max(w_sum, mw_sum)
 
     # TODO: Insert function to call decision algorithm here
 
@@ -93,27 +102,36 @@ def main(argv):
     #
     # print(visited, weight, m_weight)
 
-    non_bridges = [e for e in G.edges if e not in bridges]
-    i = 5000
-    w, mw = B, B
+    print(B, B_min)
+    i = 100000
 
+    bridge_data = []
+    for u, v in bridges:
+        bridge_data.append((u, v, G[u][v]))
+    non_bridges = [e for e in G.edges.data() if e not in bridge_data]
+
+    mirror_friendly_spanning_tree = None
+    w, mw = B, B
+    sand = 0
     for _ in range(i):
-        guess = random.sample(non_bridges, k= num_edges - (num_nodes - 1 - len(bridges)))
-        for u, v in guess:
-            G.remove_edge(u, v)
-        if len(list(nx.k_edge_components(G, k=1))) > 1:
-            for u, v in guess:
-                G.add_edge(u, v)
-        else:
+        guess = random.sample(non_bridges, k= num_nodes - 1 - len(bridge_data))
+        temp_G = nx.Graph()
+        temp_G.add_edges_from(guess)
+        temp_G.add_edges_from(bridge_data)
+        if nx.is_tree(temp_G):
+            sand += 1
             w_, mw_ = 0, 0
-            for u, v in G.edges:
-                w += G[u][v]["weight"]
-                mw += G[u][v]["m_weight"]
+            for u, v in temp_G.edges:
+                w_ += temp_G[u][v]["weight"]
+                mw_ += temp_G[u][v]["m_weight"]
             if max(w_, mw_) < B:
                 B = max(w_, mw_)
                 w, mw = w_, mw_
+                mirror_friendly_spanning_tree = temp_G
 
     print(w, mw)
+    print(sand)
+    G = mirror_friendly_spanning_tree
 
     # TODO: Printing, for fun
     layout = nx.spring_layout(G)
