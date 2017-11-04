@@ -84,7 +84,9 @@ def main(argv):
 
     # tree, B_opt = naive_edge_solution(G, B, B_min)
     # tree, B_opt = find_random_tree(G, B, B_min, 10000)
-    tree, B_opt = naive_tree_solution(G, B, B_min)
+    tree, B_opt = naive_tree_solution(G, B)
+
+    print("B_min: {0}, B_opt: {1}, B_start: {2}".format(B_min, B_opt, B))
 
     output_solution(G, tree, B_opt)
 
@@ -141,16 +143,51 @@ def naive_edge_solution(G, B, B_min):
     return mirror_friendly_spanning_tree, B
 
 
-def naive_tree_solution(G, B, B_min):
-    mirror_friendly_spanning_tree = None
-
-    # First we find all the chain the graph
-    chains = nx.chain_decomposition(G)
-
-    for chain in chains:
-        print(chain)
-
+def naive_tree_solution(G, B):
+    root = "1"
+    weight, m_weight = 0, 0
+    visited, stack, edges = frozenset(root), [root], []
+    tree_edges, B = explore_graph(G, B, weight, m_weight, visited, stack, edges)
+    mirror_friendly_spanning_tree = nx.Graph()
+    mirror_friendly_spanning_tree.add_edges_from(tree_edges)
     return mirror_friendly_spanning_tree, B
+
+
+def explore_graph(G, B, weight, m_weight, visited, stack, edges):
+    node = stack.pop()
+    configurations = list(powerset([v for v in nx.neighbors(G, node) if v not in visited]))
+    best_tree, best_B = None, B
+
+    if len(configurations) > 1:                      # There is always at least 1 element from the empty power set
+        for conf in configurations:
+            if conf is ():
+                continue
+
+            w, mw, e = weight, m_weight, []
+            for v in conf:
+                w += G[node][v]["weight"]
+                mw += G[node][v]["m_weight"]
+                e.append((node, v, G[node][v]))
+            if w > best_B or mw > best_B:
+                continue
+
+            vis = visited | frozenset(list(conf))
+            s = list(stack)
+            s.extend(list(conf))
+            e.extend(edges)
+            tree, new_B = explore_graph(G, best_B, w, mw, vis, s, e)
+
+            if new_B < best_B:
+                best_tree, best_B = tree, new_B
+    elif stack:
+        tree, new_B = explore_graph(G, B, weight, m_weight, visited, stack, edges)
+        if new_B < B:
+            best_tree, best_B = tree, new_B
+    else:
+        if len(edges) == len(G.nodes) - 1:
+            best_tree, best_B = edges, max(weight, m_weight)
+
+    return best_tree, best_B
 
 
 def output_solution(G, tree, B):
@@ -193,19 +230,3 @@ def usage(usage_type):
 
 if __name__ == "__main__":
     main(sys.argv[1:])
-
-# Naive MFMST algorithm
-    # root = '1' # int(random.uniform(1, num_nodes + 1))
-    # weight, m_weight = 0, 0
-    # visited, stack = set(root), [root]
-    # while(stack):
-    #     v = stack.pop()
-    #     neighbors = G.adj[v]
-    #     for u in neighbors:
-    #         if u not in visited:
-    #             stack.append(u)
-    #             visited.add(u)
-    #             weight += G[v][u]["weight"]
-    #             m_weight += G[v][u]["m_weight"]
-    #
-    # print(visited, weight, m_weight)
