@@ -152,7 +152,8 @@ def naive_tree_solution(G, B):
     mirror_friendly_spanning_tree.add_edges_from(tree_edges)
     return mirror_friendly_spanning_tree, B
 
-
+# We have some deapth -> breadth search problems
+# Right now the depth search is to greedy and does not let the boundary grow like a breadth search
 def explore_graph(G, B, weight, m_weight, visited, stack, edges):
     node = stack.pop()
     configurations = list(powerset([v for v in nx.neighbors(G, node) if v not in visited]))
