@@ -47,26 +47,28 @@ def main(argv):
     tree_edges = nx.minimum_spanning_edges(G, algorithm="kruskal", weight="weight")
     m_tree_edges = nx.minimum_spanning_edges(G, algorithm="kruskal", weight="m_weight")
 
-    w_sum, mw_sum = 0, 0
+    w_sum, mw_sum, t_edges = 0, 0, []
     for edge in tree_edges:
         w_sum += edge[2]["weight"]
         mw_sum += edge[2]["m_weight"]
+        t_edges.append(edge)
 
     if mw_sum <= w_sum:
         tree = nx.Graph()
-        tree.add_edges_from(tree_edges)
+        tree.add_edges_from(t_edges)
         output_solution(G, tree, w_sum)
 
     B, B_min = max(w_sum, mw_sum), w_sum
 
-    w_sum, mw_sum = 0, 0
+    w_sum, mw_sum, mt_edges = 0, 0, []
     for edge in m_tree_edges:
         w_sum += edge[2]["weight"]
         mw_sum += edge[2]["m_weight"]
+        mt_edges.append(edge)
 
     if w_sum <= mw_sum:
         tree = nx.Graph()
-        tree.add_edges_from(m_tree_edges)
+        tree.add_edges_from(mt_edges)
         output_solution(G, tree, mw_sum)
 
     B, B_min = min(B, max(w_sum, mw_sum)), max(B_min, mw_sum)
@@ -80,9 +82,9 @@ def main(argv):
         G.remove_edge(u, v)
         print("Edge ({0},{1}) removed in initial weight check".format(u, v))
 
-    tree, B_opt = naive_edge_solution(G, B, B_min)
+    # tree, B_opt = naive_edge_solution(G, B, B_min)
     # tree, B_opt = find_random_tree(G, B, B_min, 10000)
-    # tree, B_opt = naive_tree_solution(G, B, B_min)
+    tree, B_opt = naive_tree_solution(G, B, B_min)
 
     output_solution(G, tree, B_opt)
 
@@ -141,7 +143,13 @@ def naive_edge_solution(G, B, B_min):
 
 def naive_tree_solution(G, B, B_min):
     mirror_friendly_spanning_tree = None
-    itertools.p
+
+    # First we find all the chain the graph
+    chains = nx.chain_decomposition(G)
+
+    for chain in chains:
+        print(chain)
+
     return mirror_friendly_spanning_tree, B
 
 
@@ -151,7 +159,7 @@ def output_solution(G, tree, B):
     tree_layout = nx.spring_layout(tree)
     tree_labels = nx.get_edge_attributes(tree, 'weight')
     plt.subplot(121)
-    plt.text(0.0, 1.0, "The optimal solution for B is " + str(B))
+    plt.text(0.0, 1.05, "The optimal solution for B is " + str(B))
     nx.drawing.draw(G, pos=G_layout, with_labels=True, node_size=150, font_size=9)
     nx.drawing.nx_pylab.draw_networkx_edge_labels(G, pos=G_layout, font_size=9, edge_labels=G_labels)
     plt.subplot(122)
