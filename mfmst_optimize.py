@@ -156,14 +156,23 @@ def naive_tree_solution(G, B):
 # Right now the depth search is to greedy and does not let the boundary grow like a breadth search
 def explore_graph(G, B, weight, m_weight, visited, stack, edges):
     node = stack.pop()
+
     configurations = list(powerset([v for v in nx.neighbors(G, node) if v not in visited]))
+    new_configurations = []
+    for conf in configurations:
+        if conf is ():                  # The first configuration from the generator is always ()
+            continue
+        conf = list(conf)
+        if len(conf) > 1:
+            combinations = list(itertools.permutations(conf, len(conf)))
+            for comb in combinations:
+                new_configurations.append(list(comb))
+        else:
+            new_configurations.append(conf)
+
     best_tree, best_B = None, B
-
-    if len(configurations) > 1:                      # There is always at least 1 element from the empty power set
-        for conf in configurations:
-            if conf is ():
-                continue
-
+    if len(new_configurations) > 0:
+        for conf in new_configurations:
             w, mw, e = weight, m_weight, []
             for v in conf:
                 w += G[node][v]["weight"]
@@ -172,9 +181,9 @@ def explore_graph(G, B, weight, m_weight, visited, stack, edges):
             if w > best_B or mw > best_B:
                 continue
 
-            vis = visited | frozenset(list(conf))
+            vis = visited | frozenset(conf)
             s = list(stack)
-            s.extend(list(conf))
+            s.extend(conf)
             e.extend(edges)
             tree, new_B = explore_graph(G, best_B, w, mw, vis, s, e)
 
