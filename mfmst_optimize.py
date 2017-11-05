@@ -42,38 +42,40 @@ def main(argv):
     G = nx.parse_edgelist(edge_list, data=(('weight', int), ("m_weight", int), ("id", int)))
 
     # Calculate starting B and B_min (that is the minimum value B could obtain)
-    # B_min is the max of the two minimal spanning trees
+    # B_min is the max of the two minimal spanning trees for either weight
     # B is the minimum of the maximum weights in the two minimum spanning trees
     tree_edges = nx.minimum_spanning_edges(G, algorithm="kruskal", weight="weight")
     m_tree_edges = nx.minimum_spanning_edges(G, algorithm="kruskal", weight="m_weight")
 
-    w_sum, mw_sum, t_edges = 0, 0, []
+    w_sum, mw_sum, t_edges = 0, 0, []       # The sums for the weight and mirror weight in the minimum spanning tree
     for edge in tree_edges:
         w_sum += edge[2]["weight"]
         mw_sum += edge[2]["m_weight"]
         t_edges.append(edge)
 
-    if mw_sum <= w_sum:
-        tree = nx.Graph()
+    if mw_sum <= w_sum:                     # We have an optimal solution if the mirror weight is smaller than
+        tree = nx.Graph()                   #  the normal weight in the minimal spanning tree over the normal weight
         tree.add_edges_from(t_edges)
         output_solution(G, tree, w_sum)
 
-    B, B_min = max(w_sum, mw_sum), w_sum
+    B, B_min = max(w_sum, mw_sum), w_sum    # B and B_min are initialized
 
-    w_sum, mw_sum, mt_edges = 0, 0, []
+    w_sum, mw_sum, mt_edges = 0, 0, []      # The sums for the weight and mirror weight in the other minimum spanning tree
     for edge in m_tree_edges:
         w_sum += edge[2]["weight"]
         mw_sum += edge[2]["m_weight"]
         mt_edges.append(edge)
 
-    if w_sum <= mw_sum:
-        tree = nx.Graph()
+    if w_sum <= mw_sum:                     # We have an optimal solution if the weight is smaller than the mirror
+        tree = nx.Graph()                   #  weight in the minimal spanning tree over the minimal weight
         tree.add_edges_from(mt_edges)
         output_solution(G, tree, mw_sum)
 
     B, B_min = min(B, max(w_sum, mw_sum)), max(B_min, mw_sum)
 
-    # Initial weight check - O(n) time
+    # Initial weight check, where all edges with weight greater than B is removed from the graph.
+    # Since we already found a minimum spanning tree which produced a graph with value at least B
+    #  do we know that the graph is still connected afterwards. This just makes the following search easier.
     edges_to_remove = []
     for (u, v, wt) in G.edges.data("weight"):
         if wt > B:
@@ -87,7 +89,6 @@ def main(argv):
     tree, B_opt = naive_tree_solution(G, B)
 
     print("B_min: {0}, B_opt: {1}, B_start: {2}".format(B_min, B_opt, B))
-
     output_solution(G, tree, B_opt)
 
 
@@ -118,12 +119,18 @@ def find_random_tree(G, B, B_min, iterations):
 
 
 def naive_edge_solution(G, B, B_min):
+    # First we find the bridges in the graph, then the non-bridge edges and finally
+    # we make a generator that makes all combinations of edges from the non-bridge set
+    # that are of length n - 1 - number of bridges.
     bridge_data = []
     for u, v in nx.bridges(G):
         bridge_data.append((u, v, G[u][v]))
     non_bridges = [e for e in G.edges.data() if e not in bridge_data]
     combinations = itertools.combinations(non_bridges, len(G.nodes) - 1 - len(bridge_data))
 
+    # We iterate over all combinations, where we create the graph from the edges,
+    # and check whether the graph is a tree (including connectivity). If it is
+    # we calculate the weight and mirror weights and compare them to B.
     mirror_friendly_spanning_tree = None
     for comb in combinations:
         temp_G = nx.Graph()
@@ -135,11 +142,11 @@ def naive_edge_solution(G, B, B_min):
                 w_ += temp_G[u][v]["weight"]
                 mw_ += temp_G[u][v]["m_weight"]
             if max(w_, mw_) < B:
-                print("The value of B is " + str(B))        # TODO: Remove
+                print("The value of B is now " + str(B))
                 B = max(w_, mw_)
                 mirror_friendly_spanning_tree = temp_G
-                if B == B_min: break
-    print("The value of B is " + str(B))                    # TODO: Remove
+                if B == B_min: break                        # We stop if we hit the minimum value
+    print("The value of B is now  " + str(B))
     return mirror_friendly_spanning_tree, B
 
 
@@ -152,8 +159,7 @@ def naive_tree_solution(G, B):
     mirror_friendly_spanning_tree.add_edges_from(tree_edges)
     return mirror_friendly_spanning_tree, B
 
-# We have some deapth -> breadth search problems
-# Right now the depth search is to greedy and does not let the boundary grow like a breadth search
+
 def explore_graph(G, B, weight, m_weight, visited, stack, edges):
     node = stack.pop()
     configurations = list(powerset([v for v in nx.neighbors(G, node) if v not in visited]))
@@ -191,7 +197,15 @@ def explore_graph(G, B, weight, m_weight, visited, stack, edges):
     return best_tree, best_B
 
 
+def powerset(iterable):
+    # powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)
+    # Function from official doc: https://docs.python.org/3/library/itertools.html
+    s = list(iterable)
+    return itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(len(s)+1))
+
+
 def output_solution(G, tree, B):
+    # Creates a figure containing the graph and an optimal tree with value B
     G_layout = nx.spring_layout(G)
     G_labels = nx.get_edge_attributes(G, 'weight')
     tree_layout = nx.spring_layout(tree)
@@ -205,13 +219,6 @@ def output_solution(G, tree, B):
     nx.drawing.nx_pylab.draw_networkx_edge_labels(tree, pos=tree_layout, font_size=9, edge_labels=tree_labels)
     plt.show()
     sys.exit()
-
-
-def powerset(iterable):
-    # powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)
-    # Function from official doc: https://docs.python.org/3/library/itertools.html
-    s = list(iterable)
-    return itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(len(s)+1))
 
 
 def usage(usage_type):
